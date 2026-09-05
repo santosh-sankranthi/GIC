@@ -1,0 +1,52 @@
+# Binaries
+/feelc
+/dist/
+*.exe
+*.test
+*.out
+
+# IR artifacts
+*.ir.bin
+
+# Go
+/vendor/
+go.work
+go.work.sum
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Spike (throwaway)
+/spike/**/go.sum
+/spike/feeleval
+
+# Node (site build dependency, installed at build time)
+/node_modules/
+
+# Node workspaces (feelc package + examples)
+node_modules/
+**/dist/
+*.tsbuildinfo
+# WASM build artifacts for feelc (rebuilt by `make wasm` / the package build)
+/packages/engine/wasm/
+# npm pack output
+*.tgz
+
+# release pipeline marker (written by semantic-release on CI to gate the npm publish step)
+/.released-version
+
+# Generated GitHub Pages artifacts (rebuilt by .github/workflows/pages.yml)
+/site/static/
+/site/docs/
+/site/examples.json
+/site/playground/shared.js
+/site/theme.css
+
+# Local environment and test run dumps
+.env
+internal/engine/live_openrouter_results.json
+internal/engine/stress_report_raw.json
+

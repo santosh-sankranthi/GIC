@@ -1,0 +1,16 @@
+{
+  "name": "@feelc-examples/node-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Parity + cross-tool smoke test: feelc (WASM) vs the native feelc CLI.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "feelc": "*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
+  }
+}

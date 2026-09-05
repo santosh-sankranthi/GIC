@@ -1,0 +1,120 @@
+name: npm
+
+# CI on PRs, and the FULL release on push to main. On main, semantic-release computes the next version
+# from Conventional Commits, writes & pushes CHANGELOG.md, tags it, goreleaser builds the cross-platform
+# binaries, a GitHub Release is created (with the generated notes + the binaries as assets), and `feelc`
+# is published to npm via OIDC trusted publishing — no token, with provenance. OIDC trusted publishing is
+# configured against THIS workflow file (npm.yml), which is why the publish lives here. See RELEASING.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to (re)publish to npm, e.g. 1.11.0 (default: latest git tag). Use to recover a release whose npm publish was skipped."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          check-latest: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Native CLI — the parity test compares feelc (WASM) against it.
+      - name: Build the native feelc CLI
+        run: make build
+      - run: npm ci
+      - name: Build feelc (compiles the engine to WASM + bundles TS)
+        run: npm run build -w feelc
+      - name: Unit tests (WASM behaviour)
+        run: npm run test -w feelc
+      - name: Parity + cross-tool tests (WASM vs CLI)
+        run: npm run test -w @feelc-examples/node-smoke
+      - name: Bundler smoke (Vite resolves the WASM asset)
+        run: npm run build -w @feelc-examples/browser-vite
+
+  release:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # tags + GitHub release (goreleaser)
+      id-token: write # npm OIDC trusted publishing (provenance)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # semantic-release needs full history + tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          check-latest: true
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+      # No `registry-url` here on purpose — actions/setup-node would write an empty
+      # `//registry.npmjs.org/:_authToken=` to .npmrc, forcing the (failing) token path. The publish
+      # script (scripts/release-publish.sh) sets the token itself when NPM_TOKEN is provided, otherwise
+      # it falls back to OIDC trusted publishing.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g npm@latest # OIDC trusted publishing needs a recent npm (>= 11.5.1)
+      - run: npm ci # installs the semantic-release plugin chain (root devDependencies)
+      # semantic-release runs the whole release: commit-analyzer + release-notes-generator compute the
+      # version and notes; @semantic-release/changelog writes CHANGELOG.md; @semantic-release/git commits
+      # & pushes it to main ([skip ci]); the exec plugin tags, runs goreleaser (binaries -> dist/) then
+      # scripts/release-publish.sh (npm version bump + publish, NPM_TOKEN automation token if set, else
+      # OIDC); @semantic-release/github creates the GitHub Release with the notes and uploads dist/* assets.
+      - name: Release (version, changelog, tag, binaries, GitHub release, npm publish)
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # tag/changelog push + GitHub Release (contents: write)
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # optional npm "Automation" token (bypasses 2FA); empty -> OIDC
+
+  # Manual recovery: (re)publish a single already-tagged version to npm WITHOUT cutting a new release —
+  # for when a release's npm publish was skipped (e.g. before NPM_TOKEN/OIDC was set up). Run from the
+  # Actions tab; leave `version` blank to publish the latest tag. Idempotent (release-publish.sh no-ops
+  # if the version is already on the registry).
+  publish-npm:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm OIDC trusted publishing (provenance)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need tags to resolve the default (latest) version
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          check-latest: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g npm@latest # OIDC trusted publishing needs a recent npm (>= 11.5.1)
+      - run: npm ci
+      - name: Resolve target version
+        id: ver
+        run: |
+          V="${{ inputs.version }}"
+          [ -z "$V" ] && V="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publishing feelc@$V"
+      - name: Publish to npm
+        run: bash scripts/release-publish.sh "${{ steps.ver.outputs.version }}"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # automation token (bypasses 2FA); empty -> OIDC
