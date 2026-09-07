@@ -1,0 +1,13 @@
+model "sampl" {
+  rounding: half_even
+}
+
+input x : number
+
+input review_text : string
+
+decision y : number = x
+
+infer sentiment : string in ["positive", "negative", "neutral"] {
+  using: review_text
+}

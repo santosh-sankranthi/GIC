@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "modules": [
     {
+      "name": "analysis",
+      "path": "analysis.rules"
+    },
+    {
       "name": "kyc",
       "path": "kyc.rules"
     },
@@ -20,6 +24,14 @@
     {
       "name": "sampl",
       "path": "sampl.rules"
+    },
+    {
+      "name": "sentiment",
+      "path": "sentiment.rules"
+    },
+    {
+      "name": "sentiment2",
+      "path": "sentiment2.rules"
     }
   ],
   "default": "loan__approved",

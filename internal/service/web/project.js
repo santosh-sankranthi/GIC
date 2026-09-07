@@ -170,8 +170,8 @@ function modalDialog({ body, confirmLabel = "OK", danger = false, focusSel }) {
     dlg.innerHTML =
       `<form method="dialog" class="mini-form">${body}` +
       `<div class="dialog-actions">` +
-      `<button value="cancel" class="ghost">Cancel</button>` +
-      `<button value="ok" class="primary">${escapeHtml(confirmLabel)}</button>` +
+      `<button value="cancel" class="ghost" type="button" onclick="this.closest('dialog').close('cancel')">Cancel</button>` +
+      `<button value="ok" class="primary" type="submit">${escapeHtml(confirmLabel)}</button>` +
       `</div></form>`;
     document.body.appendChild(dlg);
     dlg.addEventListener("close", () => { const v = dlg.returnValue; dlg.remove(); resolve(v); });
@@ -188,8 +188,9 @@ async function createModulePrompt() {
     `<form method="dialog" class="mini-form">` +
     `<label class="mini-label">New module name <span class="hint">(letters, digits, underscore)</span>` +
     `<input class="mini-input" id="mini-mod-name" placeholder="pricing" autocomplete="off" /></label>` +
-    `<div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button>` +
-    `<button value="ok" class="primary">Create</button></div></form>`;
+    `<div class="dialog-actions">` +
+    `<button value="cancel" class="ghost" type="button" onclick="this.closest('dialog').close('cancel')">Cancel</button>` +
+    `<button value="ok" class="primary" type="submit">Create</button></div></form>`;
   document.body.appendChild(dlg);
   const input = dlg.querySelector(".mini-input");
   const name = await new Promise((resolve) => {

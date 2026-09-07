@@ -1,0 +1,23 @@
+model "sentiment" {
+  rounding: half_even
+}
+
+input review_text : string
+input customer_tier : string in ["gold", "silver", "standard"]
+input order_amount : number in [0..10000]
+
+infer customer_sentiment : string in ["positive", "negative", "neutral"] {
+  using: review_text
+}
+
+decision support_action : string {
+  needs: customer_sentiment, customer_tier, order_amount
+  hit: first
+
+  "negative" | "gold" | -      => "vip_call_within_1h"
+  "negative" | -      | >= 100 => "issue_refund_and_coupon"
+  "negative" | -      | < 100  => "issue_apology_email"
+  "neutral"  | "gold" | -      => "send_feedback_survey"
+  "positive" | -      | -      => "invite_to_leave_public_review"
+  default    |        |        => "log_feedback"
+}

@@ -1,0 +1,7 @@
+model "analysis" {
+  rounding: half_even
+}
+
+input x : number
+
+decision y : number = x

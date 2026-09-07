@@ -1,0 +1,7 @@
+model "sentiment2" {
+  rounding: half_even
+}
+
+input x : number
+
+decision y : number = x
